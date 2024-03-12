@@ -1,3 +1,5 @@
-fn main() {
-    println!("Hello, world!");
+use saffron_editor::terminal;
+
+fn main() { 
+    terminal::start_editor()
 }
