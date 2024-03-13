@@ -1,12 +1,17 @@
 use crate::editor;
-use std::process::{Command, Stdio};
-use std::io::{Error};
+use std::process::{exit, Command, Stdio};
+use std::io::Error;
 
 pub fn start_editor() {
     editor::start_editor();
-    match catpure_tty() {
-        Ok(v) => print!("{}", v),
-        Err(_e) => print!("Cannot start the editor"),
+    let tty = match catpure_tty() {
+        Ok(v) => Some(v),
+        Err(_e) => None,
+    };
+
+    if tty.is_none() {
+        eprint!("Unable to start the editor");
+        exit(1)
     }
 }
 
