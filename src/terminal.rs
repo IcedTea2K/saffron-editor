@@ -1,13 +1,24 @@
 use crate::editor;
 use std::fs::File;
-use std::process::{exit, Command, Stdio};
+use std::os::fd::AsRawFd;
+use std::process::{Command, Stdio};
 use std::io;
-// use std::fs::File;
-// use termios::
+use termios;
 
 pub fn start_editor() -> Result<(), io::Error>{
     editor::start_editor();
-    let tty = catpure_tty()?;
+    let tty         = catpure_tty()?;
+    let tty         = &tty[..tty.len()-1]; // remove ending new-line
+
+    let tty_file    = File::open(tty)?;
+    let raw_fd      = tty_file.as_raw_fd();
+    let mut term    = termios::Termios::from_fd(raw_fd).expect("Cannot access terminal raw fd");
+
+    // term.c_iflag = termios::IGNBRK;
+    
+    // termios::cfmakeraw(&mut term);
+    println!("{:#?}", term);
+    // let _ = termios::tcsetattr(raw_fd, termios::TCSAFLUSH, &term);
 
     Ok(())
 }
