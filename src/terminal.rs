@@ -1,21 +1,18 @@
 use crate::editor;
+use std::fs::File;
 use std::process::{exit, Command, Stdio};
-use std::io::Error;
+use std::io;
+// use std::fs::File;
+// use termios::
 
-pub fn start_editor() {
+pub fn start_editor() -> Result<(), io::Error>{
     editor::start_editor();
-    let tty = match catpure_tty() {
-        Ok(v) => Some(v),
-        Err(_e) => None,
-    };
+    let tty = catpure_tty()?;
 
-    if tty.is_none() {
-        eprint!("Unable to start the editor");
-        exit(1)
-    }
+    Ok(())
 }
 
-fn catpure_tty() -> Result<String, Error>{
+fn catpure_tty() -> Result<String, io::Error>{
     let proc = Command::new("tty")
         .stdout(Stdio::piped())
         .spawn()
@@ -28,5 +25,5 @@ fn catpure_tty() -> Result<String, Error>{
     if output.status.success() {
         return Ok(String::from_utf8(output.stdout).expect("Cannot convert tty ouput to string"));
     }
-    Err(Error::other("Cannot Capture TTY"))
+    Err(io::Error::other("Cannot Capture TTY"))
 }
