@@ -1,6 +1,7 @@
 use std::io::{self, Write};
 
-pub enum Event {
+#[derive(Copy, Clone)]
+pub enum Key {
     ESCAPE,
     CTRL,
     SHIFT,
@@ -9,10 +10,17 @@ pub enum Event {
     ASCII(char),
 }
 
+#[derive(Copy, Clone)]
+pub enum Action {
+    APPEND(char),
+    // potentially HIGHLIGHT, DELETE, PASTE
+}
+
+#[derive(Copy, Clone)]
 pub enum Mode {
     EDIT,
     VISUAL,
-    COMMAND,
+    NORMAL,
 }
 
 #[derive(Copy, Clone)]
@@ -24,8 +32,9 @@ pub enum State {
 
 pub struct Editor {
     state: State,
-    buffer: Option<Event>, // TODO: should have internal buffer for something
+    buffer: Option<Key>, // TODO: should have internal buffer for something
                     // Right now, it's just storing the last event
+    action: Option<Action>
 }
 
 impl Editor {    
@@ -33,7 +42,8 @@ impl Editor {
         let state = State::IN_SESSION;
         Editor {
             state,
-            buffer: None
+            buffer: None,
+            action: None,
         }
     }
 
@@ -41,14 +51,24 @@ impl Editor {
         self.state 
     }
 
-    pub fn process_event(&mut self, event: Event) { // TODO: -> Result<...> instead
+    pub fn get_action(&mut self) -> Option<Action> {
+        let returned_action = self.action;
+
+        if self.action.is_some() {
+            self.action = None;
+        }
+
+        returned_action
+    }
+
+    pub fn process_event(&mut self, event: Key) { // TODO: -> Result<...> instead
         match event {
-            Event::ASCII(c) => {
+            Key::ASCII(c) => {
                 if 'q' == c {
                     self.state = State::EXIT;
                 }
-                print!("{}", c); // TODO: remove these calls. Should not have no frontend
-                io::stdout().flush();
+
+                self.action = Some(Action::APPEND(c));
             }
             _ => {
                 // TODO: do something about control characters

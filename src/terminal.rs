@@ -24,9 +24,8 @@ pub fn start_editor() -> Result<(), io::Error>{
     let _ = io::stdout().lock();
      
     let mut curr_byte = tty_file.bytes();
-    // let mut input     = b'0';
 
-    loop {
+    loop { // main program loop
         match editor.get_state() {
             State::IN_SESSION => {
                 let input = match curr_byte.next() {
@@ -43,6 +42,7 @@ pub fn start_editor() -> Result<(), io::Error>{
                 };
 
                 editor.process_event(event);
+                render_editor(&mut editor).unwrap();
             },
             _ => {
                 let _ = termios::tcsetattr(raw_fd, termios::TCSAFLUSH, &old_term);
@@ -54,10 +54,29 @@ pub fn start_editor() -> Result<(), io::Error>{
     Ok(())
 }
 
-fn parse_input(input: u8) -> io::Result<Event>{
+fn render_editor(editor: &mut Editor) -> Result<(), io::Error>{
+    let current_action = editor.get_action();
+    if current_action.is_none() {
+        return Ok(());
+    }
+
+    match current_action.unwrap() {
+        Action::APPEND(c) => {
+            print!("{}", c);
+            io::stdout().flush().unwrap();
+        }
+        _ => {
+            // do nothing for now
+        }
+    }
+
+    Ok(())
+}
+
+fn parse_input(input: u8) -> io::Result<Key>{
     match input {
-        b'\x1b' => Ok(Event::ESCAPE),
-        _       => Ok(Event::ASCII(input as char)), // TODO: is_ascii()
+        b'\x1b' => Ok(Key::ESCAPE),
+        _       => Ok(Key::ASCII(input as char)), // TODO: is_ascii()
     }
 }
 
