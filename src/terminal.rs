@@ -20,23 +20,31 @@ pub fn start_editor() -> Result<(), io::Error>{
     term.c_lflag    &= !( termios::ICANON | termios::ECHO | termios::ISIG | termios::IEXTEN );
     let _ = termios::tcsetattr(raw_fd, termios::TCSAFLUSH, &term);
 
-    let mut curr_char = [0;1];
     let _ = io::stdout().lock();
-    while b'q' != curr_char[0] {
-        // tty_file.read
-        let num_read = match tty_file.read(&mut curr_char) {
-            Ok(n) => n,
-            Err(_) => 0
+     
+    let mut curr_byte = tty_file.bytes();
+    let mut input     = b'0';
+
+    while b'q' != input {
+        input = match curr_byte.next() {
+            Some(v) => v.unwrap(),
+            None    => 0,
         };
-        if num_read != 0 {
-            let _ = io::stdout().write_all(&curr_char);
-            let _ = io::stdout().flush();
-        }
+
+        let _ = parse_input(input);
     }
 
     let _ = termios::tcsetattr(raw_fd, termios::TCSAFLUSH, &old_term);
 
     Ok(())
+}
+
+fn parse_input(input: u8) -> io::Result<()>{
+    let _ = match input {
+        b'\x1b' => io::stdout().write_all("ESC".as_bytes()),
+        _       => io::stdout().write_all(&vec![input]),
+    };
+    io::stdout().flush()
 }
 
 fn catpure_tty() -> Result<String, io::Error>{
