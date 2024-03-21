@@ -63,19 +63,23 @@ fn render_editor(editor: &mut Editor) -> Result<(), io::Error>{
     match current_action.unwrap() {
         Action::APPEND(c) => {
             print!("{}", c);
-            io::stdout().flush().unwrap();
+        }
+        Action::DELETE => {
+            print!("\x08 \x08");
         }
         _ => {
             // do nothing for now
         }
     }
 
+    io::stdout().flush().unwrap();
     Ok(())
 }
 
 fn parse_input(input: u8) -> io::Result<Key>{
     match input {
         b'\x1b' => Ok(Key::ESCAPE),
+        b'\x7f' => Ok(Key::DEL),
         _       => Ok(Key::ASCII(input as char)), // TODO: is_ascii()
     }
 }

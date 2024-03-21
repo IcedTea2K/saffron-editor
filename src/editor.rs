@@ -3,6 +3,7 @@ use std::io::{self, Write};
 #[derive(Copy, Clone)]
 pub enum Key {
     ESCAPE,
+    DEL,
     CTRL,
     SHIFT,
     OPTION,
@@ -13,6 +14,7 @@ pub enum Key {
 #[derive(Copy, Clone)]
 pub enum Action {
     APPEND(char),
+    DELETE,
     // potentially HIGHLIGHT, DELETE, PASTE
 }
 
@@ -69,6 +71,9 @@ impl Editor {
                 }
 
                 self.action = Some(Action::APPEND(c));
+            }
+            Key::DEL => {
+                self.action = Some(Action::DELETE)
             }
             _ => {
                 // TODO: do something about control characters
