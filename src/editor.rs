@@ -4,6 +4,7 @@ use std::io::{self, Write};
 pub enum Key {
     ESCAPE,
     DEL,
+    ENTER,
     CTRL,
     SHIFT,
     OPTION,
@@ -15,6 +16,7 @@ pub enum Key {
 pub enum Action {
     APPEND(char),
     DELETE,
+    NEWLINE,
     // potentially HIGHLIGHT, DELETE, PASTE
 }
 
@@ -36,7 +38,9 @@ pub struct Editor {
     state: State,
     buffer: Option<Key>, // TODO: should have internal buffer for something
                     // Right now, it's just storing the last event
-    action: Option<Action>
+    action: Option<Action>,
+    row: u32,
+    col: u32,
 }
 
 impl Editor {    
@@ -46,7 +50,17 @@ impl Editor {
             state,
             buffer: None,
             action: None,
+            row: 0,
+            col: 0
         }
+    }
+
+    pub fn get_row(&self) -> u32 {
+        self.row
+    }
+
+    pub fn get_col(&self) -> u32 {
+        self.col
     }
 
     pub fn get_state(&self) -> State {
@@ -71,9 +85,14 @@ impl Editor {
                 }
 
                 self.action = Some(Action::APPEND(c));
+                self.col += 1;
             }
             Key::DEL => {
-                self.action = Some(Action::DELETE)
+                self.action = Some(Action::DELETE);
+            }
+            Key::ENTER => {
+                self.action = Some(Action::NEWLINE);
+                self.row += 1;
             }
             _ => {
                 // TODO: do something about control characters

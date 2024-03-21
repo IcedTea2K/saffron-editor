@@ -2,7 +2,7 @@ use crate::editor::*;
 use std::fs::File;
 use std::os::fd::AsRawFd;
 use std::process::{Command, Stdio};
-use std::io::{self, Read, Write};
+use std::io::{self, repeat, Read, Write};
 use termios;
 
 pub fn start_editor() -> Result<(), io::Error>{
@@ -67,6 +67,11 @@ fn render_editor(editor: &mut Editor) -> Result<(), io::Error>{
         Action::DELETE => {
             print!("\x08 \x08");
         }
+        Action::NEWLINE => {
+            let start = std::iter::repeat("\x08").take(editor.get_col() as usize).collect::<String>();
+            println!();
+            print!("{}", start);
+        }
         _ => {
             // do nothing for now
         }
@@ -80,6 +85,7 @@ fn parse_input(input: u8) -> io::Result<Key>{
     match input {
         b'\x1b' => Ok(Key::ESCAPE),
         b'\x7f' => Ok(Key::DEL),
+        b'\x0a' => Ok(Key::ENTER),
         _       => Ok(Key::ASCII(input as char)), // TODO: is_ascii()
     }
 }
