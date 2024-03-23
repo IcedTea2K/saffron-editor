@@ -61,6 +61,7 @@ pub fn start_editor() -> Result<(), io::Error>{
 
 fn enter_alternate_screen() {
     print!("\x1b[?1049h");
+    print!("\x1b[1;1H");
     let _ = io::stdout().flush();
 }
 
