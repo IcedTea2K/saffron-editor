@@ -37,7 +37,7 @@ pub fn start_editor() -> Result<(), io::Error>{
                     None    => 0,
                 };
 
-                let event = match parse_input(input) {
+                let key = match parse_input(input) {
                     Ok(v) => v,
                     Err(e) => {
                         let _ = termios::tcsetattr(raw_fd, termios::TCSAFLUSH, &old_term);
@@ -45,7 +45,7 @@ pub fn start_editor() -> Result<(), io::Error>{
                     }
                 };
 
-                editor.process_event(event);
+                editor.process_event(key);
                 render_editor(&mut editor)?;
             },
             State::EXIT => {
@@ -75,7 +75,7 @@ fn render_editor(editor: &mut Editor) -> Result<(), io::Error>{
         return Ok(());
     }
 
-    match current_action.unwrap() {
+    match current_action {
         Action::APPEND(c) => {
             print!("{}", c);
         }

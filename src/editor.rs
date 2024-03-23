@@ -40,9 +40,18 @@ pub struct Editor {
 
     buffer: Option<Key>, // TODO: should have internal buffer for something
                     // Right now, it's just storing the last event
-    action: Option<Action>,
+    action: Action,
     row: u32,
     col: u32,
+}
+
+impl Action {
+    pub fn is_none(&self) -> bool {
+        match self {
+            Action::NONE => true,
+            _ => false,
+        } 
+    }
 }
 
 impl Editor {    
@@ -51,7 +60,7 @@ impl Editor {
             state: State::START,
             mode: Mode::NORMAL,
             buffer: None,
-            action: None,
+            action: Action::NONE,
             row: 0,
             col: 0
         }
@@ -69,11 +78,11 @@ impl Editor {
         self.state 
     }
 
-    pub fn get_action(&mut self) -> Option<Action> {
+    pub fn get_action(&mut self) -> Action {
         let returned_action = self.action;
 
-        if self.action.is_some() {
-            self.action = None;
+        if !self.action.is_none() {
+            self.action = Action::NONE;
         }
 
         returned_action
@@ -98,10 +107,10 @@ impl Editor {
                 }
             }
             Key::DEL => {
-                self.action = Some(Action::DELETE);
+                self.action = Action::DELETE;
             }
             Key::ENTER => {
-                self.action = Some(Action::NEWLINE);
+                self.action = Action::NEWLINE;
                 self.row += 1;
             }
             Key::ESCAPE => {
@@ -136,9 +145,11 @@ impl Editor {
                 if self.col != 0 {
                     self.col -= 1;
                 }
+                self.action = Action::MOVE_LEFT;
             }
             'j' => {
                 self.row += 1; // TODO: do some boundary checking
+                self.action = Action::MOVE_DOWN;
             }
             'k' => {
                 if self.row != 0 {
@@ -155,7 +166,7 @@ impl Editor {
     }
 
     fn _process_normal_ascii(&mut self, key: char) {
-        self.action = Some(Action::APPEND(key));
+        self.action = Action::APPEND(key);
         self.col += 1;
     }
     // TODO: print/render, allow a arbitrary front-end trait to be passed in 
