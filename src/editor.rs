@@ -11,10 +11,16 @@ pub enum Key {
 }
 
 #[derive(Copy, Clone)]
+#[allow(non_camel_case_types)]
 pub enum Action {
     APPEND(char),
     DELETE,
     NEWLINE,
+    MOVE_LEFT,
+    MOVE_RIGHT,
+    MOVE_UP,
+    MOVE_DOWN,
+    NONE,
     // potentially HIGHLIGHT, DELETE, PASTE
 }
 
@@ -155,9 +161,11 @@ impl Editor {
                 if self.row != 0 {
                     self.row -= 1;
                 }
+                self.action = Action::MOVE_UP;
             }
             'l' => {
                 self.col += 1; // TODO: do some boundary checking
+                self.action = Action::MOVE_RIGHT;
             }
             _ => {
                 // do nothing for unsupport keys

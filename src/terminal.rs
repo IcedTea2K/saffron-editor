@@ -85,6 +85,18 @@ fn render_editor(editor: &mut Editor) -> Result<(), io::Error>{
         Action::NEWLINE => {
             print!("\r\n");
         }
+        Action::MOVE_UP => {
+            print!("\x1b[1A") 
+        }
+        Action::MOVE_DOWN => {
+            print!("\x1b[1B") 
+        }
+        Action::MOVE_LEFT => {
+            print!("\x1b[1D") 
+        }
+        Action::MOVE_RIGHT => {
+            print!("\x1b[1C") 
+        }
         _ => {
             // do nothing for now
         }
