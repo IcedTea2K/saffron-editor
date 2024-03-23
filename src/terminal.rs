@@ -2,7 +2,7 @@ use crate::editor::*;
 use std::fs::File;
 use std::os::fd::AsRawFd;
 use std::process::{Command, Stdio};
-use std::io::{self, repeat, Read, Write};
+use std::io::{self, Read, Write};
 use termios;
 
 pub fn start_editor() -> Result<(), io::Error>{
@@ -27,6 +27,10 @@ pub fn start_editor() -> Result<(), io::Error>{
 
     loop { // main program loop
         match editor.get_state() {
+            State::START => {
+                enter_alternate_screen();
+                editor.start();
+            }
             State::IN_SESSION => {
                 let input = match curr_byte.next() {
                     Some(v) => v.unwrap(),
@@ -42,16 +46,27 @@ pub fn start_editor() -> Result<(), io::Error>{
                 };
 
                 editor.process_event(event);
-                render_editor(&mut editor).unwrap();
+                render_editor(&mut editor)?;
             },
-            _ => {
+            State::EXIT => {
                 let _ = termios::tcsetattr(raw_fd, termios::TCSAFLUSH, &old_term);
+                exit_alternate_screen();
                 break;
             }
         }
     }
 
     Ok(())
+}
+
+fn enter_alternate_screen() {
+    print!("\x1b[?1049h");
+    let _ = io::stdout().flush();
+}
+
+fn exit_alternate_screen() {
+    print!("\x1b[?1049l");
+    let _ = io::stdout().flush();
 }
 
 fn render_editor(editor: &mut Editor) -> Result<(), io::Error>{

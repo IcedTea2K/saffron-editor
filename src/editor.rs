@@ -1,5 +1,3 @@
-use std::io::{self, Write};
-
 #[derive(Copy, Clone)]
 pub enum Key {
     ESCAPE,
@@ -46,9 +44,8 @@ pub struct Editor {
 
 impl Editor {    
     pub fn new() -> Self {
-        let state = State::IN_SESSION;
         Editor {
-            state,
+            state: State::START,
             buffer: None,
             action: None,
             row: 0,
@@ -100,6 +97,16 @@ impl Editor {
             }
         }
         self.buffer = Some(event);
+    }
+
+    pub fn start(&mut self) {
+        self.state = State::IN_SESSION;
+        // should do some internal setup
+    }
+
+    pub fn exit(&mut self) {
+        self.state = State::EXIT;
+        // should do some internal clean up
     }
 
     // TODO: print/render, allow a arbitrary front-end trait to be passed in 
