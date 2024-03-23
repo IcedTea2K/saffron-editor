@@ -23,6 +23,7 @@ pub enum Mode {
     EDIT,
     VISUAL,
     NORMAL,
+    COMMAND,
 }
 
 #[derive(Copy, Clone)]
@@ -35,6 +36,8 @@ pub enum State {
 
 pub struct Editor {
     state: State,
+    mode: Mode,
+
     buffer: Option<Key>, // TODO: should have internal buffer for something
                     // Right now, it's just storing the last event
     action: Option<Action>,
@@ -46,6 +49,7 @@ impl Editor {
     pub fn new() -> Self {
         Editor {
             state: State::START,
+            mode: Mode::NORMAL,
             buffer: None,
             action: None,
             row: 0,
@@ -75,15 +79,23 @@ impl Editor {
         returned_action
     }
 
-    pub fn process_event(&mut self, event: Key) { // TODO: -> Result<...> instead
-        match event {
+    pub fn process_event(&mut self, key: Key) { // TODO: -> Result<...> instead
+        match key {
             Key::ASCII(c) => {
-                if 'q' == c {
-                    self.state = State::EXIT;
-                }
+                match self.mode {
+                    Mode::NORMAL => {
+                        self._process_special_ascii(c);
+                    }
+                    Mode::EDIT => {
+                        self._process_normal_ascii(c);
+                    }
+                    Mode::VISUAL => {
 
-                self.action = Some(Action::APPEND(c));
-                self.col += 1;
+                    }
+                    Mode::COMMAND => {
+
+                    }
+                }
             }
             Key::DEL => {
                 self.action = Some(Action::DELETE);
@@ -92,11 +104,14 @@ impl Editor {
                 self.action = Some(Action::NEWLINE);
                 self.row += 1;
             }
+            Key::ESCAPE => {
+                self.mode = Mode::NORMAL;
+            }
             _ => {
                 // TODO: do something about control characters
             }
         }
-        self.buffer = Some(event);
+        self.buffer = Some(key);
     }
 
     pub fn start(&mut self) {
@@ -109,5 +124,39 @@ impl Editor {
         // should do some internal clean up
     }
 
+    fn _process_special_ascii(&mut self, key: char) {
+        match key {
+            'q' => {
+                self.state = State::EXIT;
+            }
+            'i' => {
+                self.mode = Mode::EDIT;
+            }
+            'h' => {
+                if self.col != 0 {
+                    self.col -= 1;
+                }
+            }
+            'j' => {
+                self.row += 1; // TODO: do some boundary checking
+            }
+            'k' => {
+                if self.row != 0 {
+                    self.row -= 1;
+                }
+            }
+            'l' => {
+                self.col += 1; // TODO: do some boundary checking
+            }
+            _ => {
+                // do nothing for unsupport keys
+            }
+        }
+    }
+
+    fn _process_normal_ascii(&mut self, key: char) {
+        self.action = Some(Action::APPEND(key));
+        self.col += 1;
+    }
     // TODO: print/render, allow a arbitrary front-end trait to be passed in 
 }
