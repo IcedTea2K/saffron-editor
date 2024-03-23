@@ -68,9 +68,7 @@ fn render_editor(editor: &mut Editor) -> Result<(), io::Error>{
             print!("\x08 \x08");
         }
         Action::NEWLINE => {
-            let start = std::iter::repeat("\x08").take(editor.get_col() as usize).collect::<String>();
-            println!();
-            print!("{}", start);
+            print!("\r\n");
         }
         _ => {
             // do nothing for now
