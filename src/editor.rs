@@ -28,6 +28,7 @@ pub enum Mode {
 }
 
 #[derive(Copy, Clone)]
+#[allow(non_camel_case_types)]
 pub enum State {
     START,
     IN_SESSION,
