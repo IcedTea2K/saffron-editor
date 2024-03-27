@@ -1,3 +1,23 @@
+- March 26th, 2024
+    - Brief [tutorial series](https://www.youtube.com/watch?v=qvZGUFHWChY&list=PL9xmBV_5YoZNqDI8qfOZgzbqahCUmUEin&index=1) on RB-tree
+    - Red-black tree requirements:
+        1. A node is either red or black
+        2. Root and leaves (NIL) are black
+        3. If a node is red, then its children are black
+        4. All paths from a node to its NIL descendants contain the same number of black nodes
+    - Nodes:
+        - should encode some information about the **key** as well as its **color**
+        - longest path is no more than twice the length of the shortest path
+            - shortest path have all black nodes
+            - longest path alternate between red and black
+    - Rotation — larger subtrees up, smaller subtrees down
+    - Insertion
+        - insert the node and color it red
+        - rotate the trees to fix the color violations. 4 different violation scenarios:
+            - Z = root. Color it back
+            - Z’s uncle = red. Recolor Z’s parent, grandparent, and uncle
+            - Z’s uncle = black with triangle (left-right/right-left imbalance) rotate Z’s parent
+            - Z’s uncle = black with line (left/right imbalance) rotate Z’s grandparent and recolor them
 - March 25th, 2024
     - Data structures for storing text:
         - General collection of different data structures: https://www.cs.unm.edu/~crowley/papers/sds.pdf
