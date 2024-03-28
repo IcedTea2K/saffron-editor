@@ -1,8 +1,10 @@
 use crate::editor::*;
+use std::error::Error;
 use std::fs::File;
 use std::os::fd::AsRawFd;
 use std::process::{Command, Stdio};
 use std::io::{self, Read, Write};
+use std::env;
 use termios;
 
 pub fn start_editor() -> Result<(), io::Error>{
@@ -29,9 +31,12 @@ pub fn start_editor() -> Result<(), io::Error>{
         match editor.get_state() {
             State::START => {
                 enter_alternate_screen();
+                open_file(&mut editor).expect("First argument should be program name");
                 editor.start();
             }
             State::IN_SESSION => {
+                render_editor(&mut editor)?;
+
                 let input = match curr_byte.next() {
                     Some(v) => v.unwrap(),
                     None    => 0,
@@ -46,7 +51,6 @@ pub fn start_editor() -> Result<(), io::Error>{
                 };
 
                 editor.process_event(key);
-                render_editor(&mut editor)?;
             },
             State::EXIT => {
                 let _ = termios::tcsetattr(raw_fd, termios::TCSAFLUSH, &old_term);
@@ -71,21 +75,27 @@ fn exit_alternate_screen() {
 }
 
 fn render_editor(editor: &mut Editor) -> Result<(), io::Error>{
+    print!("\x1b[2J"); // clear the entire screen
+    print!("\x1b[H"); // return cursor to home pos?
+    for l in editor.get_all_lines() {
+        print!("{}\r\n", l);
+    }
+
     let current_action = editor.get_action();
     if current_action.is_none() {
         return Ok(());
     }
-
+    // Temporarily disable printing input
     match current_action {
-        Action::APPEND(c) => {
-            print!("{}", c);
-        }
-        Action::DELETE => {
-            print!("\x08 \x08");
-        }
-        Action::NEWLINE => {
-            print!("\r\n");
-        }
+        // Action::APPEND(c) => {
+        //     print!("{}", c);
+        // }
+        // Action::DELETE => {
+        //     print!("\x08 \x08");
+        // }
+        // Action::NEWLINE => {
+        //     print!("\r\n");
+        // }
         Action::MOVE_UP => {
             print!("\x1b[1A") 
         }
@@ -130,4 +140,23 @@ fn catpure_tty() -> Result<String, io::Error>{
         return Ok(String::from_utf8(output.stdout).expect("Cannot convert tty ouput to string"));
     }
     Err(io::Error::other("Cannot Capture TTY"))
+}
+
+fn open_file(editor: &mut Editor) -> Result<(), io::Error>{
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() < 1 {
+        return Err(io::Error::from(io::ErrorKind::InvalidInput))
+    } else if args.len() == 1 {
+        return Ok(()) 
+    }
+
+    for arg in &args[1..] {
+        match editor.add_file(&arg) {
+            Ok(_v) => (),
+            Err(e) => eprintln!("Error {e}: {arg} cannot be open"),
+        }
+    }
+
+    Ok(())
 }

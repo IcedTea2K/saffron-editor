@@ -1,3 +1,5 @@
+use std::{fs, io::{self, ErrorKind}, usize};
+
 #[derive(Copy, Clone)]
 pub enum Key {
     ESCAPE,
@@ -44,7 +46,7 @@ pub struct Editor {
     state: State,
     mode: Mode,
 
-    buffer: Option<Key>, // TODO: should have internal buffer for something
+    buffer: Vec<String>, // TODO: should have internal buffer for something
                     // Right now, it's just storing the last event
     action: Action,
     row: u32,
@@ -65,7 +67,7 @@ impl Editor {
         Editor {
             state: State::START,
             mode: Mode::NORMAL,
-            buffer: None,
+            buffer: Vec::new(),
             action: Action::NONE,
             row: 0,
             col: 0
@@ -126,7 +128,6 @@ impl Editor {
                 // TODO: do something about control characters
             }
         }
-        self.buffer = Some(key);
     }
 
     pub fn start(&mut self) {
@@ -134,9 +135,41 @@ impl Editor {
         // should do some internal setup
     }
 
+    pub fn add_file(&mut self, file: &String) -> Result<(), io::Error>{
+        match fs::read_to_string(file) {
+            Ok(buf) => self._split_and_set_buffer(buf),
+            Err(_e) => return Err(io::Error::from(ErrorKind::NotFound))
+        }
+        Ok(())
+    }
+    
+    pub fn get_line_content(&self, line: usize) -> Result<String, io::Error> {
+        if line == 0 || line > self.buffer.len() {
+            return Err(io::Error::new(io::ErrorKind::Other, "Unknown line"))
+        } 
+        Ok("".to_string())
+    }
+
+    pub fn get_all_lines(&self) -> &Vec<String> {
+        &self.buffer
+    }
+
     pub fn exit(&mut self) {
         self.state = State::EXIT;
         // should do some internal clean up
+    }
+
+    fn _split_and_set_buffer(&mut self, buf: String) {
+        let mut temp_string = String::new();
+        for c in buf.chars() {
+            match c {
+                '\n' => {
+                    self.buffer.push(temp_string);
+                    temp_string = String::new();
+                },
+                _ => temp_string.push(c)
+            }
+        }
     }
 
     fn _process_special_ascii(&mut self, key: char) {
