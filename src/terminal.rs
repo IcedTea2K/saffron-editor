@@ -8,18 +8,27 @@ use std::env;
 use termios::{self, Termios};
 
 pub fn start_editor() -> Result<(), io::Error>{
+    let mut drawer = Drawer::new();
     let mut editor = Editor::new();
-    let mut drawer = Drawer::new(&mut editor);
 
     loop { // main program loop
         match editor.get_state() {
             State::START => {
-                // open_file(&mut editor).expect("First argument should be program name");
-                drawer.start();
+                editor.start();
+                drawer.start(&mut editor)?;
             }
             State::IN_SESSION => {
                 // render_editor(&mut editor)?;
-                drawer.take_input();
+                match drawer.take_input() {
+                    Ok(v) => editor.process_event(v),
+                    Err(e) => {
+                        editor.exit();
+                        return Err(e);
+                    }
+                }
+
+                let action = editor.get_action();
+                drawer.render_editor(action).unwrap();
             },
             State::EXIT => {
                 drawer.end();
@@ -31,16 +40,15 @@ pub fn start_editor() -> Result<(), io::Error>{
     Ok(())
 }
 
-struct Drawer<'a> {
-    editor: &'a mut Editor,
+struct Drawer {
     raw_fd: i32,
     old_term: Termios,
     cur_term: Termios,
     input_stream: Bytes<File>,
 }
 
-impl<'a> Drawer<'a> {
-    pub fn new(editor: &'a mut Editor) -> Self {
+impl Drawer {
+    pub fn new() -> Self {
         let tty          = catpure_tty().expect("Something went wrong: Cannot capture tty");
         let tty          = &tty[..tty.len()-1]; // remove ending new-line
 
@@ -56,7 +64,6 @@ impl<'a> Drawer<'a> {
         let _ = termios::tcsetattr(raw_fd, termios::TCSAFLUSH, &cur_term);
 
         Drawer {
-            editor,
             raw_fd,
             old_term,
             cur_term,
@@ -64,10 +71,10 @@ impl<'a> Drawer<'a> {
         } 
     }
 
-    pub fn start(&mut self) {
-        self.editor.start();
+    pub fn start(&mut self, editor: &mut Editor) -> Result<(), io::Error>{
         self._enter_alternate_screen();
         self.refresh_screen();
+        self._process_args(editor)
     }
 
     pub fn end(&self) {
@@ -79,7 +86,7 @@ impl<'a> Drawer<'a> {
 
     }
 
-    pub fn take_input(&mut self) {
+    pub fn take_input(&mut self) -> Result<Key, io::Error>{
         let _ = io::stdout().lock();
 
         let input = match self.input_stream.next() {
@@ -88,15 +95,78 @@ impl<'a> Drawer<'a> {
         };
 
         let key;
-        match parse_input(input) {
+        match self._parse_input(input) {
             Ok(v) => key = v,
-            Err(_e) => {
+            Err(e) => {
                 self.end();
-                return
+                return Err(e)
             }
         };
 
-        self.editor.process_event(key);
+        Ok(key)
+    }
+
+    pub fn render_editor(&self, action: Action) -> Result<(), io::Error>{
+        // print!("\x1b[2J"); // clear the entire screen
+        // print!("\x1b[H"); // return cursor to home pos?
+        // for l in editor.get_all_lines() {
+        //     print!("{}\r\n", l);
+        // }
+        //
+        if action.is_none() {
+            return Ok(());
+
+        }
+        // Temporarily disable printing input
+        match action {
+            Action::APPEND(c) => {
+                print!("{}", c);
+            }
+            Action::DELETE => {
+                print!("\x08 \x08");
+            }
+            Action::NEWLINE => {
+                print!("\r\n");
+            }
+            Action::MOVE_UP => {
+                print!("\x1b[1A") 
+            }
+            Action::MOVE_DOWN => {
+                print!("\x1b[1B") 
+            }
+            Action::MOVE_LEFT => {
+                print!("\x1b[1D") 
+            }
+            Action::MOVE_RIGHT => {
+                print!("\x1b[1C") 
+            }
+            _ => {
+                // do nothing for now
+            }
+        }
+
+        io::stdout().flush().unwrap();
+        Ok(())
+    }
+
+    pub fn _process_args(&self, editor: &mut Editor) -> Result<(), io::Error>{
+        let args: Vec<String> = env::args().collect();
+
+        if args.len() < 1 {
+            return Err(io::Error::from(io::ErrorKind::InvalidInput))
+        } 
+        if args.len() == 1 {
+            return Ok(()) 
+        }
+
+        for arg in &args[1..] {
+            match editor.add_file(&arg) {
+                Ok(_v) => (),
+                Err(e) => eprintln!("Error {e}: {arg} cannot be open"),
+            }
+        }
+
+        Ok(())
     }
 
     fn _enter_alternate_screen(&self) {
@@ -109,62 +179,13 @@ impl<'a> Drawer<'a> {
         let _ = io::stdout().flush();
     }
 
-}
-
-fn render_editor(editor: &mut Editor) -> Result<(), io::Error>{
-    // print!("\x1b[2J"); // clear the entire screen
-    // print!("\x1b[H"); // return cursor to home pos?
-    // for l in editor.get_all_lines() {
-    //     print!("{}\r\n", l);
-    // }
-    //
-    let current_action = editor.get_action();
-    if current_action.is_none() {
-        return Ok(());
-
-    }
-    // Temporarily disable printing input
-    match current_action {
-        // Action::APPEND(c) => {
-        //     print!("{}", c);
-        // }
-        // Action::DELETE => {
-        //     print!("\x08 \x08");
-        // }
-        // Action::NEWLINE => {
-        //     print!("\r\n");
-        // }
-        Action::MOVE_UP => {
-            print!("\x1b[1A") 
+    fn _parse_input(&self, input: u8) -> io::Result<Key>{
+        match input {
+            b'\x1b' => Ok(Key::ESCAPE),
+            b'\x7f' => Ok(Key::DEL),
+            b'\x0a' => Ok(Key::ENTER),
+            _       => Ok(Key::ASCII(input as char)), // TODO: is_ascii()
         }
-        Action::MOVE_DOWN => {
-            print!("\x1b[1B") 
-        }
-        Action::MOVE_LEFT => {
-            print!("\x1b[1D") 
-        }
-        Action::MOVE_RIGHT => {
-            print!("\x1b[1C") 
-        }
-        _ => {
-            // do nothing for now
-        }
-    }
-
-    io::stdout().flush().unwrap();
-    Ok(())
-}
-
-fn refresh_render(editor: &Editor) {
-
-}
-
-fn parse_input(input: u8) -> io::Result<Key>{
-    match input {
-        b'\x1b' => Ok(Key::ESCAPE),
-        b'\x7f' => Ok(Key::DEL),
-        b'\x0a' => Ok(Key::ENTER),
-        _       => Ok(Key::ASCII(input as char)), // TODO: is_ascii()
     }
 }
 
@@ -184,22 +205,3 @@ fn catpure_tty() -> Result<String, io::Error>{
     Err(io::Error::other("Cannot Capture TTY"))
 }
 
-fn open_file(editor: &mut Editor) -> Result<(), io::Error>{
-    let args: Vec<String> = env::args().collect();
-
-    if args.len() < 1 {
-        return Err(io::Error::from(io::ErrorKind::InvalidInput))
-    } 
-    if args.len() == 1 {
-        return Ok(()) 
-    }
-
-    for arg in &args[1..] {
-        match editor.add_file(&arg) {
-            Ok(_v) => (),
-            Err(e) => eprintln!("Error {e}: {arg} cannot be open"),
-        }
-    }
-
-    Ok(())
-}
