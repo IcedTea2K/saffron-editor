@@ -49,7 +49,7 @@ struct Drawer {
 
 impl Drawer {
     pub fn new() -> Self {
-        let tty          = catpure_tty().expect("Something went wrong: Cannot capture tty");
+        let tty          = Self::_catpure_tty().expect("Something went wrong: Cannot capture tty");
         let tty          = &tty[..tty.len()-1]; // remove ending new-line
 
         let tty_file     = File::open(tty).expect("Something went wrong: Cannot access tty");
@@ -187,21 +187,20 @@ impl Drawer {
             _       => Ok(Key::ASCII(input as char)), // TODO: is_ascii()
         }
     }
-}
 
-fn catpure_tty() -> Result<String, io::Error>{
-    let proc = Command::new("tty")
-        .stdout(Stdio::piped())
-        .spawn()
-        .expect("Failed to execute process");
+    fn _catpure_tty() -> Result<String, io::Error>{
+        let proc = Command::new("tty")
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("Failed to execute process");
 
-    let output = proc
-        .wait_with_output()
-        .expect("Cannot wait for the process to finish executing");
+        let output = proc
+            .wait_with_output()
+            .expect("Cannot wait for the process to finish executing");
 
-    if output.status.success() {
-        return Ok(String::from_utf8(output.stdout).expect("Cannot convert tty ouput to string"));
+        if output.status.success() {
+            return Ok(String::from_utf8(output.stdout).expect("Cannot convert tty ouput to string"));
+        }
+        Err(io::Error::other("Cannot Capture TTY"))
     }
-    Err(io::Error::other("Cannot Capture TTY"))
 }
-
