@@ -73,8 +73,8 @@ impl Drawer {
 
     pub fn start(&mut self, editor: &mut Editor) -> Result<(), io::Error>{
         self._enter_alternate_screen();
-        self.refresh_screen();
-        self._process_args(editor)
+        self._process_args(editor)?;
+        self.refresh_screen(editor)
     }
 
     pub fn end(&self) {
@@ -82,13 +82,24 @@ impl Drawer {
         self._exit_alternate_screen();
     }
 
-    pub fn refresh_screen(&self) {
+    pub fn refresh_screen(&self, editor: &Editor) -> Result<(), io::Error> {
+        // Setup screen
+        print!("\x1b[2J"); // clear the entire screen
+        print!("\x1b[H"); // return cursor to home pos?
+ 
 
+        // Print out the content
+        let lines = editor.get_all_lines();
+        for line in lines {
+            self._render_line(line)?;
+        }
+
+        print!("\x1b[H");
+        io::stdout().flush()?;
+        Ok(())
     }
 
     pub fn take_input(&mut self) -> Result<Key, io::Error>{
-        let _ = io::stdout().lock();
-
         let input = match self.input_stream.next() {
             Some(v) => v.unwrap(),
             None    => 0,
@@ -107,16 +118,10 @@ impl Drawer {
     }
 
     pub fn render_editor(&self, action: Action) -> Result<(), io::Error>{
-        // print!("\x1b[2J"); // clear the entire screen
-        // print!("\x1b[H"); // return cursor to home pos?
-        // for l in editor.get_all_lines() {
-        //     print!("{}\r\n", l);
-        // }
-        //
         if action.is_none() {
             return Ok(());
-
         }
+
         // Temporarily disable printing input
         match action {
             Action::APPEND(c) => {
@@ -145,11 +150,18 @@ impl Drawer {
             }
         }
 
-        io::stdout().flush().unwrap();
+        io::stdout().flush()?;
         Ok(())
     }
 
-    pub fn _process_args(&self, editor: &mut Editor) -> Result<(), io::Error>{
+    fn _render_line(&self, line: &String) -> Result<(), io::Error> {
+        print!("{}\n", line);
+        print!("\x1b[0G");
+
+        io::stdout().flush()
+    }
+
+    fn _process_args(&self, editor: &mut Editor) -> Result<(), io::Error>{
         let args: Vec<String> = env::args().collect();
 
         if args.len() < 1 {
