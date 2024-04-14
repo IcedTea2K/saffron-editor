@@ -96,7 +96,7 @@ impl Editor {
         returned_action
     }
 
-    pub fn process_event(&mut self, key: Key) { // TODO: -> Result<...> instead
+    pub fn process_key(&mut self, key: Key) { // TODO: -> Result<...> instead
         match key {
             Key::ASCII(c) => {
                 match self.mode {

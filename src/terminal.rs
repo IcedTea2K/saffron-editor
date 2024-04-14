@@ -9,29 +9,29 @@ use termios::{self, Termios};
 
 pub fn start_editor() -> Result<(), io::Error>{
     let mut drawer = Drawer::new();
-    let mut editor = Editor::new();
 
     loop { // main program loop
-        match editor.get_state() {
+        match drawer.get_editor_state() {
             State::START => {
-                editor.start();
-                drawer.start(&mut editor)?;
+                drawer.start()?;
             }
             State::IN_SESSION => {
-                // render_editor(&mut editor)?;
                 match drawer.take_input() {
-                    Ok(v) => editor.process_event(v),
-                    Err(e) => {
-                        editor.exit();
-                        return Err(e);
+                    Ok(()) => (),
+                    Err(_e) => {
+                        // do nothing about the error for now
                     }
                 }
 
-                let action = editor.get_action();
-                drawer.render_editor(action).unwrap();
+                match drawer.render_editor() {
+                    Ok(()) => (),
+                    Err(_e) => {
+                        // do nothing about the error for now
+                    }
+                }
             },
             State::EXIT => {
-                drawer.end();
+                drawer.exit();
                 break;
             }
         }
@@ -44,6 +44,7 @@ struct Drawer {
     raw_fd: i32,
     old_term: Termios,
     input_stream: Bytes<File>,
+    editor: Editor
 }
 
 impl Drawer {
@@ -56,37 +57,45 @@ impl Drawer {
         let old_term     = termios::Termios::from_fd(raw_fd).expect("Something went wrong: Cannot access terminal raw fd");
         let mut cur_term     = old_term.clone();
 
+        let editor       = Editor::new();
+
         cur_term.c_iflag    &= !( termios::IGNCR | termios::IXON | termios::IGNBRK | termios::BRKINT ); // Fook Window users
         cur_term.c_oflag    &= !( termios::OCRNL | termios::OPOST );
         cur_term.c_lflag    &= !( termios::ICANON | termios::ECHO | termios::ISIG | termios::IEXTEN );
-        let _ = termios::tcsetattr(raw_fd, termios::TCSAFLUSH, &cur_term);
+        termios::tcsetattr(raw_fd, termios::TCSAFLUSH, &cur_term).expect("Something went wrong: Cannot enter raw mode");
 
         Drawer {
             raw_fd,
             old_term,
             input_stream, 
+            editor
         } 
     }
 
-    pub fn start(&mut self, editor: &mut Editor) -> Result<(), io::Error>{
+    pub fn start(&mut self) -> Result<(), io::Error>{
+        self.editor.start();
+
         self._enter_alternate_screen();
-        self._process_args(editor)?;
-        self.refresh_screen(editor)
+        self._process_args()?;
+        self.refresh_screen()
     }
 
-    pub fn end(&self) {
-        let _ = termios::tcsetattr(self.raw_fd, termios::TCSAFLUSH, &self.old_term);
-        self._exit_alternate_screen();
+    pub fn exit(&mut self) {
+        self.editor.exit();
+
+
+        self._exit_alternate_screen().expect("Something went wrong: cannot quite alternate buffer");
+        termios::tcsetattr(self.raw_fd, termios::TCSAFLUSH, &self.old_term).expect("Something went wrong: cannot close editor cleanly");
     }
 
-    pub fn refresh_screen(&self, editor: &Editor) -> Result<(), io::Error> {
+    pub fn refresh_screen(&self) -> Result<(), io::Error> {
         // Setup screen
         print!("\x1b[2J"); // clear the entire screen
         print!("\x1b[H"); // return cursor to home pos?
  
 
         // Print out the content
-        let lines = editor.get_all_lines();
+        let lines = self.editor.get_all_lines();
         for line in lines {
             self._render_line(line)?;
         }
@@ -96,25 +105,21 @@ impl Drawer {
         Ok(())
     }
 
-    pub fn take_input(&mut self) -> Result<Key, io::Error>{
+    pub fn take_input(&mut self) -> io::Result<()>{
         let input = match self.input_stream.next() {
             Some(v) => v.unwrap(),
             None    => 0,
         };
 
-        let key;
-        match self._parse_input(input) {
-            Ok(v) => key = v,
-            Err(e) => {
-                self.end();
-                return Err(e)
-            }
-        };
+        let key = self._parse_input(input)?;
+        self.editor.process_key(key);
 
-        Ok(key)
+        Ok(())
     }
 
-    pub fn render_editor(&self, action: Action) -> Result<(), io::Error>{
+    pub fn render_editor(&mut self) -> Result<(), io::Error>{
+        let action = self.editor.get_action();
+
         if action.is_none() {
             return Ok(());
         }
@@ -151,6 +156,10 @@ impl Drawer {
         Ok(())
     }
 
+    pub fn get_editor_state(&self) -> State {
+        self.editor.get_state()
+    }
+
     fn _render_line(&self, line: &String) -> Result<(), io::Error> {
         print!("{}\n", line);
         print!("\x1b[0G");
@@ -158,7 +167,7 @@ impl Drawer {
         io::stdout().flush()
     }
 
-    fn _process_args(&self, editor: &mut Editor) -> Result<(), io::Error>{
+    fn _process_args(&mut self) -> io::Result<()>{
         let args: Vec<String> = env::args().collect();
 
         if args.len() < 1 {
@@ -169,7 +178,7 @@ impl Drawer {
         }
 
         for arg in &args[1..] {
-            match editor.add_file(&arg) {
+            match self.editor.add_file(&arg) {
                 Ok(_v) => (),
                 Err(e) => eprintln!("Error {e}: {arg} cannot be open"),
             }
@@ -183,9 +192,10 @@ impl Drawer {
         print!("\x1b[1;1H");
         let _ = io::stdout().flush();
     }
-    fn _exit_alternate_screen(&self) {
+    fn _exit_alternate_screen(&self) -> io::Result<()>{
         print!("\x1b[?1049l");
-        let _ = io::stdout().flush();
+        io::stdout().flush()?;
+        Ok(())
     }
 
     fn _parse_input(&self, input: u8) -> io::Result<Key>{
