@@ -49,8 +49,10 @@ pub struct Editor {
     buffer: Vec<String>, // TODO: should have internal buffer for something
                     // Right now, it's just storing the last event
     action: Action,
-    row: u32,
-    col: u32,
+    row: usize,
+    col: usize,
+
+    virtual_col: usize
 }
 
 impl Action {
@@ -70,15 +72,16 @@ impl Editor {
             buffer: Vec::new(),
             action: Action::NONE,
             row: 0,
-            col: 0
+            col: 0,
+            virtual_col: 0
         }
     }
 
-    pub fn get_row(&self) -> u32 {
+    pub fn get_row(&self) -> usize {
         self.row
     }
 
-    pub fn get_col(&self) -> u32 {
+    pub fn get_col(&self) -> usize {
         self.col
     }
 
@@ -181,24 +184,32 @@ impl Editor {
                 self.mode = Mode::EDIT;
             }
             'h' => {
-                if self.col != 0 {
+                if self.col > 0 {
                     self.col -= 1;
+                    self.virtual_col = self.col;
+                    self.action = Action::MOVE_LEFT;
                 }
-                self.action = Action::MOVE_LEFT;
             }
             'j' => {
-                self.row += 1; // TODO: do some boundary checking
-                self.action = Action::MOVE_DOWN;
+                if self.row < self.buffer.len() - 1 {
+                    self.row += 1;
+                    self._update_cursor();
+                    self.action = Action::MOVE_DOWN;
+                }
             }
             'k' => {
-                if self.row != 0 {
+                if self.row > 0 {
                     self.row -= 1;
+                    self._update_cursor();
+                    self.action = Action::MOVE_UP;
                 }
-                self.action = Action::MOVE_UP;
             }
             'l' => {
-                self.col += 1; // TODO: do some boundary checking
-                self.action = Action::MOVE_RIGHT;
+                if self.col < self.buffer[self.row].len() - 1 {
+                    self.col += 1;
+                    self.virtual_col = self.col;
+                    self.action = Action::MOVE_RIGHT;
+                }
             }
             _ => {
                 // do nothing for unsupport keys
@@ -209,6 +220,22 @@ impl Editor {
     fn _process_normal_ascii(&mut self, key: char) {
         self.action = Action::APPEND(key);
         self.col += 1;
+    }
+
+    // Update the cursor if necessary since rows have different length
+    // This is necessary as different rows has different length
+    fn _update_cursor(&mut self) {
+        // TODO: account for the start of the row (a.k.a tabs)
+        //
+        // should introduce the concept of virtual col
+        // virtual col becomes col after every horizontal move
+        let curr_len = self.buffer[self.row].len();
+
+        if self.virtual_col > curr_len {
+            self.col = curr_len - 1;
+        } else {
+            self.col = self.virtual_col
+        }
     }
     // TODO: print/render, allow a arbitrary front-end trait to be passed in 
 }

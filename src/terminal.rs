@@ -124,7 +124,6 @@ impl Drawer {
             return Ok(());
         }
 
-        // Temporarily disable printing input
         match action {
             Action::APPEND(c) => {
                 print!("{}", c);
@@ -135,18 +134,22 @@ impl Drawer {
             Action::NEWLINE => {
                 print!("\r\n");
             }
-            Action::MOVE_UP => {
-                print!("\x1b[1A") 
+            Action::MOVE_UP | Action::MOVE_DOWN | Action::MOVE_LEFT | Action::MOVE_RIGHT => {
+                // print!("{},{}", self.editor.get_row(), self.editor.get_col());
+                print!("\x1b[{};{}H", self.editor.get_row() + 1, self.editor.get_col() + 1);
             }
-            Action::MOVE_DOWN => {
-                print!("\x1b[1B") 
-            }
-            Action::MOVE_LEFT => {
-                print!("\x1b[1D") 
-            }
-            Action::MOVE_RIGHT => {
-                print!("\x1b[1C") 
-            }
+            // Action::MOVE_UP => {
+            //     print!("\x1b[1A") 
+            // }
+            // Action::MOVE_DOWN => {
+            //     print!("\x1b[1B") 
+            // }
+            // Action::MOVE_LEFT => {
+            //     print!("\x1b[1D") 
+            // }
+            // Action::MOVE_RIGHT => {
+            //     print!("\x1b[1C") 
+            // }
             _ => {
                 // do nothing for now
             }
