@@ -217,6 +217,12 @@ impl Editor {
 
                 self.action = Action::MOVE_RIGHT;
             }
+            '0' => {
+                self.col = 0;
+                self.virtual_col = 0;
+
+                self.action = Action::MOVE_LEFT;
+            }
             _ => {
                 // do nothing for unsupport keys
             }
