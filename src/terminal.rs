@@ -43,14 +43,12 @@ pub fn start_editor() -> Result<(), io::Error>{
 struct Drawer {
     raw_fd: i32,
     old_term: Termios,
-    cur_term: Termios,
     input_stream: Bytes<File>,
 }
 
 impl Drawer {
     pub fn new() -> Self {
         let tty          = Self::_catpure_tty().expect("Something went wrong: Cannot capture tty");
-        let tty          = &tty[..tty.len()-1]; // remove ending new-line
 
         let tty_file     = File::open(tty).expect("Something went wrong: Cannot access tty");
         let raw_fd       = tty_file.as_raw_fd();
@@ -66,7 +64,6 @@ impl Drawer {
         Drawer {
             raw_fd,
             old_term,
-            cur_term,
             input_stream, 
         } 
     }
@@ -201,6 +198,7 @@ impl Drawer {
     }
 
     fn _catpure_tty() -> Result<String, io::Error>{
+        let mut res_tty: String;
         let proc = Command::new("tty")
             .stdout(Stdio::piped())
             .spawn()
@@ -211,7 +209,9 @@ impl Drawer {
             .expect("Cannot wait for the process to finish executing");
 
         if output.status.success() {
-            return Ok(String::from_utf8(output.stdout).expect("Cannot convert tty ouput to string"));
+            res_tty = String::from_utf8(output.stdout).expect("Cannot convert tty ouput to string");
+            res_tty = res_tty.trim_end().to_string(); // remove new line at the end
+            return Ok(res_tty);
         }
         Err(io::Error::other("Cannot Capture TTY"))
     }
