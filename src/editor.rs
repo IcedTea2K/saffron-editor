@@ -211,6 +211,12 @@ impl Editor {
                     self.action = Action::MOVE_RIGHT;
                 }
             }
+            '$' => {
+                self.virtual_col = usize::MAX;
+                self._update_cursor();
+
+                self.action = Action::MOVE_RIGHT;
+            }
             _ => {
                 // do nothing for unsupport keys
             }
