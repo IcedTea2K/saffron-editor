@@ -226,12 +226,9 @@ impl Editor {
     // This is necessary as different rows has different length
     fn _update_cursor(&mut self) {
         // TODO: account for the start of the row (a.k.a tabs)
-        //
-        // should introduce the concept of virtual col
-        // virtual col becomes col after every horizontal move
         let curr_len = self.buffer[self.row].len();
 
-        if self.virtual_col > curr_len {
+        if self.virtual_col > curr_len - 1 {
             self.col = curr_len - 1;
         } else {
             self.col = self.virtual_col

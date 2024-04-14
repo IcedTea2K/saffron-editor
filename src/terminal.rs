@@ -138,18 +138,6 @@ impl Drawer {
                 // print!("{},{}", self.editor.get_row(), self.editor.get_col());
                 print!("\x1b[{};{}H", self.editor.get_row() + 1, self.editor.get_col() + 1);
             }
-            // Action::MOVE_UP => {
-            //     print!("\x1b[1A") 
-            // }
-            // Action::MOVE_DOWN => {
-            //     print!("\x1b[1B") 
-            // }
-            // Action::MOVE_LEFT => {
-            //     print!("\x1b[1D") 
-            // }
-            // Action::MOVE_RIGHT => {
-            //     print!("\x1b[1C") 
-            // }
             _ => {
                 // do nothing for now
             }
