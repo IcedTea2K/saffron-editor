@@ -1,11 +1,13 @@
-use crate::editor::{self, *};
-use std::error::Error;
+use crate::editor::{*};
 use std::fs::File;
 use std::os::fd::AsRawFd;
 use std::process::{Command, Stdio};
 use std::io::{self, Read, Write, Bytes};
 use std::env;
 use termios::{self, Termios};
+
+mod ansii_const;
+use ansii_const::*;
 
 pub fn start_editor() -> Result<(), io::Error>{
     let mut drawer = Drawer::new();
@@ -82,7 +84,7 @@ impl Drawer {
 
     pub fn exit(&mut self) {
         self.editor.exit();
-
+        print!("{}", THICK_CURSOR);
 
         self._exit_alternate_screen().expect("Something went wrong: cannot quite alternate buffer");
         termios::tcsetattr(self.raw_fd, termios::TCSAFLUSH, &self.old_term).expect("Something went wrong: cannot close editor cleanly");
@@ -126,9 +128,11 @@ impl Drawer {
 
         match action {
             Action::APPEND(_c) => {
-                print!("\x1b[1G"); // reset to the start of line
+                print!("{}", START_LINE);
                 print!("{}", self.editor.get_current_line());
-                print!("\x1b[{}G", self.editor.get_col()); 
+
+                // offset by 1 to stay right
+                print!("{}", JUMP_TO_HORIZONTAL(self.editor.get_col() + 1));
             }
             Action::DELETE => {
                 print!("\x08 \x08");
@@ -139,6 +143,9 @@ impl Drawer {
             Action::MOVE_UP | Action::MOVE_DOWN | Action::MOVE_LEFT | Action::MOVE_RIGHT => {
                 // print!("{},{}", self.editor.get_row(), self.editor.get_col());
                 print!("\x1b[{};{}H", self.editor.get_row() + 1, self.editor.get_col() + 1);
+            }
+            Action::SWITCH_MODE => {
+                self._render_mode(self.editor.get_mode()); 
             }
             _ => {
                 // do nothing for now
@@ -151,6 +158,24 @@ impl Drawer {
 
     pub fn get_editor_state(&self) -> State {
         self.editor.get_state()
+    }
+
+    /// Render the mode of the Editor. Usually used when entering new mode
+    fn _render_mode(&self, mode: Mode) {
+        match mode {
+            Mode::EDIT => {
+                print!("{}", THIN_CURSOR);
+            }
+            Mode::VISUAL => {
+
+            }
+            Mode::NORMAL => {
+                print!("{}", THICK_CURSOR);
+            }
+            Mode::COMMAND => {
+
+            }
+        } 
     }
 
     fn _render_line(&self, line: &String) -> Result<(), io::Error> {

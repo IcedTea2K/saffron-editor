@@ -22,6 +22,7 @@ pub enum Action {
     MOVE_RIGHT,
     MOVE_UP,
     MOVE_DOWN,
+    SWITCH_MODE,
     NONE,
     // potentially HIGHLIGHT, DELETE, PASTE
 }
@@ -126,6 +127,7 @@ impl Editor {
             }
             Key::ESCAPE => {
                 self.mode = Mode::NORMAL;
+                self.action = Action::SWITCH_MODE;
             }
             _ => {
                 // TODO: do something about control characters
@@ -155,6 +157,11 @@ impl Editor {
         &self.buffer
     }
 
+    /// Return the current mode of the editor
+    pub fn get_mode(&self) -> Mode {
+        self.mode
+    }
+
     pub fn exit(&mut self) {
         self.state = State::EXIT;
         // should do some internal clean up
@@ -180,6 +187,7 @@ impl Editor {
             }
             'i' => {
                 self.mode = Mode::EDIT;
+                self.action = Action::SWITCH_MODE;
             }
             'h' => {
                 if self.col > 0 {
