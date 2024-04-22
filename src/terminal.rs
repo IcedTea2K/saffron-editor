@@ -125,8 +125,10 @@ impl Drawer {
         }
 
         match action {
-            Action::APPEND(c) => {
-                print!("{}", c);
+            Action::APPEND(_c) => {
+                print!("\x1b[1G"); // reset to the start of line
+                print!("{}", self.editor.get_current_line());
+                print!("\x1b[{}G", self.editor.get_col()); 
             }
             Action::DELETE => {
                 print!("\x08 \x08");

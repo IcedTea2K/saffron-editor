@@ -146,11 +146,9 @@ impl Editor {
         Ok(())
     }
     
-    pub fn get_line_content(&self, line: usize) -> Result<String, io::Error> {
-        if line == 0 || line > self.buffer.len() {
-            return Err(io::Error::new(io::ErrorKind::Other, "Unknown line"))
-        } 
-        Ok("".to_string())
+    /// Return the current line of cursor in buffer
+    pub fn get_current_line(&self) -> &String {
+        &self.buffer[self.row]
     }
 
     pub fn get_all_lines(&self) -> &Vec<String> {
@@ -229,8 +227,10 @@ impl Editor {
         }
     }
 
+    /// Process the normal key and edit the buffer
     fn _process_normal_ascii(&mut self, key: char) {
         self.action = Action::APPEND(key);
+        self.buffer[self.row].insert(self.col, key);
         self.col += 1;
     }
 
