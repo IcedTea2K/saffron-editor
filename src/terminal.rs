@@ -92,17 +92,17 @@ impl Drawer {
 
     pub fn refresh_screen(&self) -> Result<(), io::Error> {
         // Setup screen
-        print!("\x1b[2J"); // clear the entire screen
-        print!("\x1b[H"); // return cursor to home pos?
+        print!("{}", CLEAR_SCREEN);
+        print!("{}", JUMP_TO_ORG);
  
 
         // Print out the content
         let lines = self.editor.get_all_lines();
-        for line in lines {
-            self._render_line(line)?;
+        for (row, line) in lines.iter().enumerate() {
+            self._render_line(row + 1, line)?;
         }
 
-        print!("\x1b[H");
+        print!("{}", JUMP_TO_ORG);
         io::stdout().flush()?;
         Ok(())
     }
@@ -121,6 +121,9 @@ impl Drawer {
 
     pub fn render_editor(&mut self) -> Result<(), io::Error>{
         let action = self.editor.get_action();
+        let curr_row: usize;
+        let curr_col: usize;
+        let curr_line: &String;
 
         if action.is_none() {
             return Ok(());
@@ -128,8 +131,10 @@ impl Drawer {
 
         match action {
             Action::APPEND(_c) => {
-                print!("{}", START_LINE);
-                print!("{}", self.editor.get_current_line());
+                curr_row = self.editor.get_row();
+                curr_line = self.editor.get_current_line();
+
+                self._render_line(curr_row + 1, curr_line)?;
 
                 // offset by 1 to stay right
                 print!("{}", JUMP_TO_HORIZONTAL(self.editor.get_col() + 1));
@@ -138,11 +143,13 @@ impl Drawer {
                 print!("\x08 \x08");
             }
             Action::NEWLINE => {
-                print!("\r\n");
+                print!("\n\r");
             }
             Action::MOVE_UP | Action::MOVE_DOWN | Action::MOVE_LEFT | Action::MOVE_RIGHT => {
-                // print!("{},{}", self.editor.get_row(), self.editor.get_col());
-                print!("\x1b[{};{}H", self.editor.get_row() + 1, self.editor.get_col() + 1);
+                curr_row = self.editor.get_row();
+                curr_col = self.editor.get_col();
+
+                print!("{}", JUMP_TO((curr_row + 1, curr_col + 1)));
             }
             Action::SWITCH_MODE => {
                 self._render_mode(self.editor.get_mode()); 
@@ -178,9 +185,11 @@ impl Drawer {
         } 
     }
 
-    fn _render_line(&self, line: &String) -> Result<(), io::Error> {
-        print!("{}\n", line);
-        print!("\x1b[0G");
+    /// render a line with given content, at a certain location (row, col)
+    fn _render_line(&self, line: usize, content: &String) -> Result<(), io::Error> {
+        print!("{}", JUMP_TO((line, 0)));
+        print!("{}", START_LINE);
+        print!("{}", content);
 
         io::stdout().flush()
     }
@@ -206,12 +215,12 @@ impl Drawer {
     }
 
     fn _enter_alternate_screen(&self) {
-        print!("\x1b[?1049h");
-        print!("\x1b[1;1H");
+        print!("{}", ALT_SCREEN);
+        print!("{}", JUMP_TO_ORG);
         let _ = io::stdout().flush();
     }
     fn _exit_alternate_screen(&self) -> io::Result<()>{
-        print!("\x1b[?1049l");
+        print!("{}", EXIT_SCREEN);
         io::stdout().flush()?;
         Ok(())
     }
